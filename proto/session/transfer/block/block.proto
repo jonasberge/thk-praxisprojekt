@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package transfer.data;
+option go_package = "projekt/core/lib/session/transfer/block";
+
+// A block of data with a specific offset.
+message Block { // ->
+  uint64 index = 1; // position = index * block_size
+  bytes data = 2; // all but the last block must be block_size bytes
+  bytes checksum = 3; // SHA-256(data)
+}

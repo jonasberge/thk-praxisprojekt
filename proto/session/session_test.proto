@@ -1,0 +1,24 @@
+syntax = "proto3";
+
+package protocol;
+option go_package = "projekt/core/lib/session";
+
+// A message type holds the type of an "outer" root message.
+// These types of message are encoded and sent over a channel.
+// "Inner" messages are only embedded in root messages.
+enum MessageType {
+  MESSAGE_TYPE_INVALID = 0;
+  MESSAGE_TYPE_OUTER = 1;
+}
+
+// An outer message that has a type.
+message Outer {
+  Inner inner = 1;
+  int32 b = 2;
+}
+
+// An inner message that is only contained in other message
+// and never sent directly, and hence does not need a type.
+message Inner {
+  int32 a = 1;
+}

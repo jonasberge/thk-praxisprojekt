@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package relay;
+option go_package = "projekt/core/lib/relay";
+
+enum MessageType {
+  MESSAGE_TYPE_INVALID = 0;
+  MESSAGE_TYPE_CONNECTED = 1;
+  MESSAGE_TYPE_ALREADY_CONNECTED = 2;
+  MESSAGE_TYPE_REQUEST_SESSION = 3;
+  MESSAGE_TYPE_SESSION_FAILED = 4;
+  MESSAGE_TYPE_SESSION_CREATED = 5;
+  MESSAGE_TYPE_SESSION_INVITATION = 6;
+  MESSAGE_TYPE_ACCEPT_SESSION = 7;
+  MESSAGE_TYPE_SESSION_ACCEPTED = 8;
+  MESSAGE_TYPE_SESSION_ESTABLISHED = 9;
+}
+
+message Message {
+  MessageType type = 1;
+  bytes content = 2;
+}
+
+message Connected {} // <- R; acknowledges session as ok
+message AlreadyConnected {} // <- R; closes the session as the client is already connected with this identity
+
+// message Ping {} // -> R
+// message Pong {} // <- R
+
+message RequestSession { // A -> R
+  bytes target_identity = 1; // target device identity (B)
+  bytes additional_data = 2; // -> e
+}
+
+enum Error {
+  ERROR_NONE = 0;
+  ERROR_TARGET_UNAVAILABLE = 1; // target device is not connected to the relay
+  ERROR_SESSION_EXISTS = 2; // requested session already exists
+  ERROR_UNKNOWN_SESSION = 3; // the session does not exist
+  ERROR_SESSION_ALREADY_ACCEPTED = 4; // session was already accepted
+  ERROR_INITIATOR_UNAVAILABLE = 5; // the initiator left the relay
+}
+
+message SessionFailed { // A <- R
+  Error reason = 1; // why did the session fail
+  bytes peer_identity = 2; // initiator or target identity, depending on perspective
+}
+
+message SessionDescription {
+  bytes key = 1; // session key for authentication (different for each participant)
+  uint32 port = 2; // the port on this server to connect to (other than 23520)
+}
+
+message SessionCreated { // A <- R
+  SessionDescription session = 1;
+  bytes target_identity = 2;
+}
+
+message SessionInvitation { // B <- R
+  SessionDescription session = 1;
+  bytes initiator_identity = 2; // A
+  bytes additional_data = 3;
+}
+
+// message IgnoreSession {} // B -> R
+
+message AcceptSession { // B -> R
+  bytes initiator_identity = 1;
+  bytes additional_data = 2; // <- e, ee, se, es
+}
+
+message SessionAccepted { // A <- R
+  bytes target_identity = 1;
+  bytes additional_data = 2;
+}
+
+message SessionEstablished { // B <- R
+  bytes initiator_identity = 1;
+}
+
+// If the target device does not trust the identity,
+// it may choose to ignore the SessionInvitation.
+// The session is closed by the server if both parties
+// did not connect after 30 or so seconds.
+
+// An extra message or denial process is more work than necessary.
+// Closing a session prematurely only frees a little amount of resources,
+// like a key in a map or some Redis entry or whatever.
+// We did not open an additional TCP socket that might be worth closing.
+
+// The initiator should only send data after it has received confirmation.
+// They can't do much else anyway, since they need the handshake response.
+// It is no problem to wait for it before sending it,
+// since it will arrive earlier than if it was sent over the device session.
+// The target device first needs to establish the TCP connection
+// while it has already established the session with the relay server.
+// Sending it over the relay server is thus faster.
+// Also the initiator will know that the device is very likely reachable.
+
+// The relay won't cache anything directly.
+// Instead it will not Read until both devices are connected.

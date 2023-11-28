@@ -1,0 +1,91 @@
+syntax = "proto3";
+
+package transfer;
+option go_package = "projekt/core/lib/session/transfer";
+
+import public "session/transfer/block/block.proto";
+
+// TODO: Support different data formats (text, images, files, ...).
+// TODO: Optionally compress blocks.
+// TODO: Continue an interrupted transmission.
+
+enum MessageType {
+  MESSAGE_TYPE_NONE = 0;
+  MESSAGE_TYPE_HEADER = 2;
+  MESSAGE_TYPE_ACKNOWLEDGE = 3;
+  MESSAGE_TYPE_BLOCK = 4;
+  MESSAGE_TYPE_BLOCK_RECEIVED = 5;
+  MESSAGE_TYPE_REDO_BLOCK = 6;
+  MESSAGE_TYPE_DATA_SENT = 7;
+  MESSAGE_TYPE_DATA_RECEIVED = 8;
+  MESSAGE_TYPE_ABORT = 9;
+}
+
+// Important information that is required for reassembly of blocks.
+// The metadata describes the format of the data.
+message Header { // ->
+  Metadata metadata = 1;
+  uint64 total_size = 2;
+  uint64 block_size = 3;
+}
+
+// Descriptive metadata about the content.
+message Metadata {
+  string filename = 1;
+}
+
+message Acknowledge {} // <-
+
+// Acknowledges that a block has been received.
+message BlockReceived { // <-
+  uint64 index = 1;
+}
+
+// Sent by the receiver if they are certain that the sender thinks
+// the specified block was received, when in reality it was not.
+// This can be the case when receiving a block
+// that comes after the block that is specified in this packet,
+// while we should be receiving all packets in the order they were sent.
+// This would signal to us that a block is missing.
+// The same goes with the Done packet which marks the end of the transfer
+// and which comes only after all blocks have been sent.
+// The sender must send the specified block again.
+// useful when:
+// - the checksum is not correct for some reason
+// - ...
+message RedoBlock { // <-
+  uint64 index = 1;
+}
+
+message DataSent { // ->
+  bytes total_checksum = 1; // SHA-256(total-data)
+}
+
+// The sender first signals that they sent all blocks.
+// The receiver may query any potentially missing blocks.
+// Finally the receiver sends done too.
+// The transfer is complete and the channel my be closed.
+// This packet must first be sent by the sender, then by the receiver.
+// The receiver should only send it after it received Done.
+message DataReceived {} // <-
+
+// <->
+// Any side may abort at any time during the process.
+message Abort {
+  enum Reason {
+    ABORT_REASON_UNKNOWN = 0;
+    // Either side may cancel the transfer.
+    ABORT_REASON_CANCELED = 1; // <->
+    // The data is too large to store.
+    ABORT_REASON_TOO_LARGE = 2; // <-
+    // The received data is not usable by the receiver.
+    // This could be e.g. because blocks overlap and have different data at the intersection
+    // or the last packet does not contain enough bytes to fill the total_size.
+    // This should not happen when the sender properly fragments the data.
+    ABORT_REASON_BAD_DATA = 3; // <-
+    // The received total checksum does not match
+    // with the checksum that was computed by the receiver.
+    ABORT_REASON_BAD_TOTAL_CHECKSUM = 4;
+  }
+  Reason reason = 1;
+}

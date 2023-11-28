@@ -1,0 +1,54 @@
+syntax = "proto3";
+
+package local;
+option go_package = "projekt/core/lib/local/message";
+
+enum ConnectionType {
+  CONNECTION_TYPE_INVALID = 0;
+  CONNECTION_TYPE_REQUEST = 1;
+  CONNECTION_TYPE_RESPONSE = 2;
+}
+
+// TODO add magic value before the Header.
+
+// very first message on every TCP connection.
+// it communicates which type of message the next one is going to be.
+// this is necessary because either type can be the first message in a TCP connection.
+message Header { // 1 ->
+  // CONNECTION_TYPE_REQUEST if the next message is a SessionRequest
+  // CONNECTION_TYPE_RESPONSE if the next message is a SessionResponse
+  ConnectionType connection_type = 1;
+}
+
+message RequestPayload {
+  uint64 request_id = 1; // unique for identification of responses, mixed into prologue
+  uint64 epoch_seconds = 2; // the timestamp of when this packet was created/sent
+  bytes handshake_message = 3; // -> e
+}
+
+// first and only message on UDP
+// first message on TCP (possibly)
+message Request { // 1 ->
+  bytes payload = 1; // RequestPayload
+  bytes mac = 2; // HMAC(body, target-device-hmac-key)
+}
+
+// always on TCP (first message on TCP)
+message Response { // 2 <-
+  uint64 request_id = 1; // identifies the corresponding request, mixed into prologue
+  bytes handshake_message = 2; // <- e, ee, es
+}
+
+message Hello { // 3 ->
+  bytes handshake_message = 1; // -> s, se
+}
+
+enum ResultType {
+  RESULT_TYPE_INVALID = 0;
+  RESULT_TYPE_REFUSED = 1;
+  RESULT_TYPE_OK = 2;
+}
+
+message Result { // 4 <-
+  ResultType type = 1;
+}

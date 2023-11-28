@@ -1,0 +1,22 @@
+version: '3'
+
+networks:
+  test_network:
+    driver: bridge
+
+services:
+  alpha:
+    image: network_test
+    build:
+      context: .
+      dockerfile: docker/network_test/Dockerfile
+    volumes:
+      - ./:/test
+    networks:
+      - test_network
+  bravo:
+    image: network_test
+    volumes:
+      - ./:/test
+    networks:
+      - test_network

@@ -1,0 +1,19 @@
+syntax = "proto3";
+
+package relay;
+option go_package = "projekt/core/lib/relay";
+
+message AuthenticateSession {
+  bytes key = 1;
+}
+
+enum SessionState {
+  SESSION_STATE_INVALID = 0;
+  SESSION_STATE_CONNECTED = 1;
+  SESSION_STATE_ALREADY_CONNECTED = 2;
+  SESSION_STATE_INVALID_KEY = 3;
+}
+
+message SessionResponse {
+  SessionState state = 1;
+}
